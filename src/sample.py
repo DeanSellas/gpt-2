@@ -7,6 +7,7 @@ def top_k_logits(logits, k):
         # no truncation
         return logits
 
+    # TODO find out how to output this function!
     def _top_k():
         values, _ = tf.nn.top_k(logits, k=k)
         min_values = values[:, -1, tf.newaxis]
@@ -50,6 +51,9 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
             next_outputs = step(hparams, prev[:, tf.newaxis], past=past)
             logits = next_outputs['logits'][:, -1, :]  / tf.to_float(temperature)
             logits = top_k_logits(logits, k=top_k)
+            
+            # print("LOGITS: "+str(logits.get_shape().as_list()))
+
             samples = tf.multinomial(logits, num_samples=1, output_dtype=tf.int32)
             return [
                 tf.concat([past, next_outputs['presents']], axis=-2),
@@ -75,5 +79,4 @@ def sample_sequence(*, hparams, length, start_token=None, batch_size=None, conte
             ],
             back_prop=False,
         )
-
         return tokens
