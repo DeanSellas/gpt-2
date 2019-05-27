@@ -74,6 +74,8 @@ def interact_model(
      special setting meaning no restrictions. 40 generally is a good value.
      ------------------------------------------------------------------------------------------------
     """
+
+
     if batch_size is None:
         batch_size = 1
     assert nsamples % batch_size == 0
@@ -89,7 +91,11 @@ def interact_model(
         raise ValueError("Can't get samples longer than window size: %s" % hparams.n_ctx)
 
     with tf.Session(graph=tf.Graph()) as sess:
+        # placeholder value, dtype, shape. Shape is batchzise and none
         context = tf.placeholder(tf.int32, [batch_size, None])
+        print("Context Pre-Output: "+str(context))
+
+
         np.random.seed(seed)
         tf.set_random_seed(seed)
         output = sample.sample_sequence(
@@ -98,6 +104,10 @@ def interact_model(
             batch_size=batch_size,
             temperature=temperature, top_k=top_k
         )
+        print("Output: "+str(output))
+
+
+
         saver = tf.train.Saver()
         ckpt = tf.train.latest_checkpoint(os.path.join('models', model_name))
         saver.restore(sess, ckpt)
@@ -120,7 +130,7 @@ def interact_model(
                 # Returns shape of the output
                 # print("Output Tensor: "+str(output))
                 
-                # feed dictionary, consiting of the context tolkens
+                # feed dictionary, consiting of the context tokens
                 contextDic = {context: [context_tokens for placeholder in range(batch_size)]}
 
                 # print("Context Dictionary: "+ str(contextDic))
@@ -138,7 +148,6 @@ def interact_model(
                 out = out[:, len(context_tokens):]
 
                 # print(out)
-
 
                 """
                 ------------------------------------------------------------------------------------------------
@@ -168,6 +177,12 @@ def interact_model(
                     print(out[i])
                     print(text)
             print("=" * 80)
+
+
+    
+
+
+
 
 if __name__ == '__main__':
     fire.Fire(interact_model)
