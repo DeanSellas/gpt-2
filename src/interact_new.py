@@ -1,4 +1,3 @@
-import fire
 import json
 import os
 import numpy as np
@@ -6,8 +5,39 @@ import tensorflow as tf
 
 import model, sample, encoder
 
+
+import time, random
+
+
+
 class GPT2():
-    def __init__(self, model_name, seed, nsamples, batch_size, length, temperature, top_k):
+    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40):
+        """
+        GPT-2 class
+        ------------------------------------------------------------------------------------------------
+        :model_name=117M : String, which model to use
+
+        :seed=None : Integer seed for random number generators, fix seed to reproduce
+        results
+
+        :nsamples=1 : Number of samples to return total
+
+        :batch_size=1 : Number of batches (only affects speed/memory).  Must divide nsamples.
+
+        :length=None : Number of tokens in generated text, if None (default), is
+        determined by model hyperparameters
+
+        :temperature=1 : Float value controlling randomness in boltzmann
+        distribution. Lower temperature results in less random completions. As the
+        temperature approaches zero, the model will become deterministic and
+        repetitive. Higher temperature results in more random completions.
+
+        :top_k=0 : Integer value controlling diversity. 1 means only 1 word is
+        considered for each step (token), resulting in deterministic completions,
+        while 40 means 40 words are considered at each step. 0 (default) is a
+        special setting meaning no restrictions. 40 generally is a good value.
+        ------------------------------------------------------------------------------------------------
+        """
         self.model_name = model_name
         self.seed = seed
         self.nsamples = nsamples
@@ -34,7 +64,12 @@ class GPT2():
 
 
     def _checks(self):
-
+        """ Makes sure all values are appropriate values are inputted and corrects those values """
+        if self.seed is None:
+            # sets a random seed if seed is not defined
+            self.seed = random.randint(0, 2**32-1)
+            print("Your Seed is: " + str(self.seed))
+        
         # makes sure batch size is divisable by samples. prevents errors when building outputs
         if self.batch_size is None or self.nsamples % self.batch_size == 0:
             # set batchsize to a default of 1
@@ -49,9 +84,8 @@ class GPT2():
             raise ValueError("Can't get samples longer than window size: %s" % self.hparams.n_ctx)
 
     def _buildOutput(self):
-
+        """ Builds the necessary objects for GPT-2 to run properly """
         
-
         # placeholder value, dtype, shape. Shape is batchzise and none
         self.context = tf.placeholder(tf.int32, [self.batch_size, None])
         print("Context Pre-Output: "+str(self.context))
@@ -72,17 +106,22 @@ class GPT2():
         saver.restore(self.sess, ckpt)
 
 
-    def run(self):
+    def run(self, timer = False):
+        """ Runs GPT-2 """
+
         print("Type ?help for available commands")
         while True:
             
-            self.prompt()
+            self._prompt()
             
             if self.raw_text == None:
                 continue
             
             context_tokens = self.enc.encode(self.raw_text)
             generated = 0
+
+            if timer:
+                start = time.time()
             for _ in range(self.nsamples // self.batch_size):
                 
                 # Returns shape of the output
@@ -132,14 +171,20 @@ class GPT2():
                     print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
 
                     # PRINTS LIST OF INDECIES
-                    print(out[i])
+                    # print(out[i])
                     print(text)
-            print("=" * 80)
 
+            print("=" * 80)
+            if timer:
+                end = time.time()
+                print("It took "+str(round(end - start)) + " seconds to generate this output")
+
+        # ends program
         self.close()
 
+
     # Input for GPT-2 to customize settings
-    def prompt(self):
+    def _prompt(self):
         "Takes user input and throws appropriate respose to GPT-2"
 
         self.raw_text = input("Model prompt >>> ")
@@ -166,23 +211,20 @@ class GPT2():
         exit()
 
 
-def interact_model(
-    model_name='117M',
-    # made seed 20 to get same result every time. meant for testing
-    seed=20,
-
-    # NSamples are how many outputs are generated
-    nsamples=2,
-    # Batch Size is how many outputs are generated at once
-    batch_size=2,
-
-    length=10,
-    temperature=0.5,
-    top_k=40,
-):
-    gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-    gpt.run()
 
 
-if __name__ == '__main__':
-    fire.Fire(interact_model)
+model_name='117M'
+# made seed 20 to get same result every time. meant for testing
+seed=None
+
+# NSamples are how many outputs are generated
+nsamples=2
+# Batch Size is how many outputs are generated at once
+batch_size=1
+
+length=100
+temperature=0.5
+top_k=40
+
+gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
+gpt.run(True)
