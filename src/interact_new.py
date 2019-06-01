@@ -3,12 +3,7 @@ import os
 import numpy as np
 import tensorflow as tf
 
-import model, sample, encoder
-
-
-import time, random
-
-
+import model, sample, encoder, time, random
 
 class GPT2():
     def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40):
@@ -60,7 +55,6 @@ class GPT2():
         self.sess = tf.Session()
 
         self._buildOutput()
-        
 
 
     def _checks(self):
@@ -71,7 +65,7 @@ class GPT2():
             print("Your Seed is: " + str(self.seed))
         
         # makes sure batch size is divisable by samples. prevents errors when building outputs
-        if self.batch_size is None or self.nsamples % self.batch_size == 0:
+        if self.nsamples % self.batch_size == 0:
             # set batchsize to a default of 1
             self.batch_size = 1
 
@@ -212,19 +206,20 @@ class GPT2():
 
 
 
+def testingFunction():
+        
+    model_name='117M'
+    # made seed 20 to get same result every time. meant for testing
+    seed=None
 
-model_name='117M'
-# made seed 20 to get same result every time. meant for testing
-seed=None
+    # NSamples are how many outputs are generated
+    nsamples=2
+    # Batch Size is how many outputs are generated at once
+    batch_size=1
 
-# NSamples are how many outputs are generated
-nsamples=2
-# Batch Size is how many outputs are generated at once
-batch_size=1
+    length=100
+    temperature=0.5
+    top_k=40
 
-length=100
-temperature=0.5
-top_k=40
-
-gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-gpt.run(True)
+    gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
+    gpt.run(True)
