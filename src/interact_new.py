@@ -1,9 +1,8 @@
-import json
-import os
+import json, os, time, random
 import numpy as np
 import tensorflow as tf
 
-import model, sample, encoder, time, random
+import model, sample, encoder
 
 class GPT2():
     def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40):
@@ -186,40 +185,34 @@ class GPT2():
         # if prompt is empty notify user, and restart loop
         if not self.raw_text:
             print("Prompt should not be empty! Type ?help or ?h for available commands")
-            return None
+            self.raw_text = None
         
         if self.raw_text == "?help" or self.raw_text == "?h":
             print("Available Commands:\n\n?help - Displays Commands. Alias: ?h\n#kill - Ends GPT-2 Process\n")
-            return None
+            self.raw_text = None
 
         # if user types #kill break the loop. Cleaner way to close application
         if self.raw_text == "#kill":
             check = input("Are you sure you want to end GPT-2? [Y/n] ").lower()
             if check == "n":
-                return None
+                self.raw_text = None
             self.close()
+        
+        if self.raw_text == "#change":
+            print("What variable would you like to modify?\n\nnsamples: {} \nbatch_size: {}\n".format(self.nsamples, self.batch_size))
+            
+            variable = input("Type the Variable: ")
+            value = int(input("New Value: "))
+
+            
+            if variable == "batch_size":
+                self.batch_size = value
+            if variable == "nsamples":
+                self.nsamples = value
+
+            self.raw_text = None
 
     def close(self):
         print("Ending GPT-2")
         self.sess.close()
         exit()
-
-
-
-def testingFunction():
-        
-    model_name='117M'
-    # made seed 20 to get same result every time. meant for testing
-    seed=None
-
-    # NSamples are how many outputs are generated
-    nsamples=2
-    # Batch Size is how many outputs are generated at once
-    batch_size=1
-
-    length=100
-    temperature=0.5
-    top_k=40
-
-    gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-    gpt.run(True)
