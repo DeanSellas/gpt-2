@@ -119,7 +119,7 @@ class GPT2():
                 
                 # Returns shape of the output
                 # print("Output Tensor: "+str(output))
-                
+
                 # feed dictionary, consiting of the context tokens
                 contextDic = {self.context: [context_tokens for placeholder in range(self.batch_size)]}
 
