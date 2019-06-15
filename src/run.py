@@ -11,13 +11,13 @@ def interact_model(
     # Batch Size is how many outputs are generated at once
     batch_size=2,
 
-    length=10,
+    length=None,
     temperature=0.5,
     top_k=40,
-    timer = False,
+    debug = False,
 ):
     gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-    if timer:
+    if debug:
         gpt.run(True)
     else:
         gpt.run()

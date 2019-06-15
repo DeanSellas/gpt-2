@@ -2,10 +2,15 @@ import json, os, time, random
 import numpy as np
 import tensorflow as tf
 
+from datetime import datetime
+
+
+from pyLogger import pyLogger
+
 import model, sample, encoder
 
 class GPT2():
-    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40):
+    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40, log_path=None):
         """
         GPT-2 class
         ------------------------------------------------------------------------------------------------
@@ -39,7 +44,11 @@ class GPT2():
         self.length = length
         self.temperature = temperature
         self.top_k = top_k
+        self.log_path = log_path
+
+        self._buildLogger()
         
+
         # builds encoder for model.
         self.enc = encoder.get_encoder(self.model_name)
 
@@ -55,13 +64,18 @@ class GPT2():
 
         self._buildOutput()
 
+    def _buildLogger(self):
+        self.logger = pyLogger(self.log_path)
+        self.logger._print("STARTING GPT-2 -- {}\n\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')), None)
+        
+
 
     def _checks(self):
         """ Makes sure all values are appropriate values are inputted and corrects those values """
         if self.seed is None:
             # sets a random seed if seed is not defined
             self.seed = random.randint(0, 2**32-1)
-            print("Your Seed is: " + str(self.seed))
+            self.logger._print("Your Seed is: " + str(self.seed))
         
         # makes sure batch size is divisable by samples. prevents errors when building outputs
         if self.nsamples % self.batch_size == 0:
@@ -74,14 +88,16 @@ class GPT2():
             self.length = self.hparams.n_ctx // 2
         
         elif self.length > self.hparams.n_ctx:
-            raise ValueError("Can't get samples longer than window size: %s" % self.hparams.n_ctx)
+            error = "Can't get samples longer than window size: %s" % self.hparams.n_ctx
+            self.logger._print(error, "ERROR")
+            raise ValueError(error)
 
     def _buildOutput(self):
         """ Builds the necessary objects for GPT-2 to run properly """
-        
+
         # placeholder value, dtype, shape. Shape is batchzise and none
         self.context = tf.placeholder(tf.int32, [self.batch_size, None])
-        print("Context Pre-Output: "+str(self.context))
+        self.logger._print("Context Pre-Output: {}".format(self.context))
 
 
         np.random.seed(self.seed)
@@ -92,17 +108,17 @@ class GPT2():
             batch_size = self.batch_size,
             temperature = self.temperature, top_k = self.top_k
         )
-        print("Output: "+str(self.output))
+        self.logger._print("Output: "+str(self.output))
 
         saver = tf.train.Saver()
         ckpt = tf.train.latest_checkpoint(os.path.join('models', self.model_name))
         saver.restore(self.sess, ckpt)
 
 
-    def run(self, timer = False):
+    def run(self, debug = False):
         """ Runs GPT-2 """
 
-        print("Type ?help for available commands")
+        self.logger._print("Type ?help for available commands")
         while True:
             
             self._prompt()
@@ -113,7 +129,8 @@ class GPT2():
             context_tokens = self.enc.encode(self.raw_text)
             generated = 0
 
-            if timer:
+            if debug:
+                self.logger._print("Using: {} Seed; {} Length; {} nSamples; {} Batch-Size;".format(self.seed, self.length, self.nsamples, self.batch_size))
                 start = time.time()
             for _ in range(self.nsamples // self.batch_size):
                 
@@ -161,16 +178,17 @@ class GPT2():
                 for i in range(self.batch_size):
                     generated += 1
                     text = self.enc.decode(out[i])
-                    print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
+                    self.logger._print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
 
                     # PRINTS LIST OF INDECIES
                     # print(out[i])
-                    print(text)
+                    self.logger._print(text)
 
             print("=" * 80)
-            if timer:
+            if debug:
                 end = time.time()
-                print("It took "+str(round(end - start)) + " seconds to generate this output")
+                self.logger._print("It took "+str(round(end - start)) + " seconds to generate this output")
+            self.logger._save()
 
         # ends program
         self.close()
@@ -214,5 +232,6 @@ class GPT2():
 
     def close(self):
         print("Ending GPT-2")
+        self.logger.close()
         self.sess.close()
         exit()
