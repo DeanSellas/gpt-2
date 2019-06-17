@@ -72,7 +72,7 @@ class GPT2():
 
     def _checks(self):
         """ Makes sure all values are appropriate values are inputted and corrects those values """
-        if self.seed is None:
+        if self.seed == None:
             # sets a random seed if seed is not defined
             self.seed = random.randint(0, 2**32-1)
             self.logger._print("Your Seed is: " + str(self.seed))
@@ -83,14 +83,10 @@ class GPT2():
             self.batch_size = 1
 
         # makes sure the output can calculate the desired length
-        if self.length is None:
+        if self.length == None or self.length > self.hparams.n_ctx:
             # default length = hparmas.n_ctx (max size) / 2
             self.length = self.hparams.n_ctx // 2
-        
-        elif self.length > self.hparams.n_ctx:
-            error = "Can't get samples longer than window size: %s" % self.hparams.n_ctx
-            self.logger._print(error, "ERROR")
-            raise ValueError(error)
+
 
     def _buildOutput(self):
         """ Builds the necessary objects for GPT-2 to run properly """
@@ -102,13 +98,16 @@ class GPT2():
 
         np.random.seed(self.seed)
         tf.set_random_seed(self.seed)
-        self.output = sample.sample_sequence(
+
+        # generates a sample set sequence of data based on parameters provided
+        self.sequence = sample.sample_sequence(
             hparams = self.hparams, length = self.length,
             context = self.context,
             batch_size = self.batch_size,
             temperature = self.temperature, top_k = self.top_k
         )
-        self.logger._print("Output: "+str(self.output))
+        # saves that data inside self.sequence
+        self.logger._print("Output: "+str(self.sequence))
 
         saver = tf.train.Saver()
         ckpt = tf.train.latest_checkpoint(os.path.join('models', self.model_name))
@@ -116,23 +115,27 @@ class GPT2():
 
 
     def run(self, debug = False):
-        """ Runs GPT-2 """
+        """
+        Runs GPT-2
+
+        Debug allows the user to see more output. Also displays time it took for the program to create and display the output
+        """
 
         self.logger._print("Type ?help for available commands")
         while True:
-            
             self._prompt()
             
             if self.raw_text == None:
                 continue
             
+            # encodes the inputted string into a format that can be inputted into Tensor Flow
             context_tokens = self.enc.encode(self.raw_text)
-            generated = 0
 
             if debug:
-                self.logger._print("Using: {} Seed; {} Length; {} nSamples; {} Batch-Size;".format(self.seed, self.length, self.nsamples, self.batch_size))
+                self.logger._print("Seed: {}; Length: {}; nSamples: {}; Batch-Size: {};".format(self.seed, self.length, self.nsamples, self.batch_size))
                 start = time.time()
-            for _ in range(self.nsamples // self.batch_size):
+            
+            for generated in range(self.nsamples // self.batch_size):
                 
                 # Returns shape of the output
                 # print("Output Tensor: "+str(output))
@@ -145,11 +148,11 @@ class GPT2():
                 # TODO figure out how this function works
                 #  OUT CREATES ALL THE OUTPUTS FOR THE GIVEN PROMPT
                 # https://www.tensorflow.org/api_docs/python/tf/Session#run
-                out = self.sess.run(self.output, feed_dict=contextDic)
+                out = self.sess.run(self.sequence, feed_dict=contextDic)
 
                 # print(out)
 
-                # Removes the context tokens from the output.
+                # Removes the context tokens (inputted string) from the output.
 
                 # Context tokens are included in the output, this splices them out in order to give only the output and not the original prompt
                 out = out[:, len(context_tokens):]
@@ -176,13 +179,12 @@ class GPT2():
                 """
 
                 for i in range(self.batch_size):
-                    generated += 1
                     text = self.enc.decode(out[i])
-                    self.logger._print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
+                    self.logger._print("=" * 40 + " SAMPLE " + str(generated+1) + " " + "=" * 40, None)
 
                     # PRINTS LIST OF INDECIES
                     # print(out[i])
-                    self.logger._print(text)
+                    self.logger._print(text, "OUTPUT")
 
             print("=" * 80)
             if debug:
@@ -217,7 +219,7 @@ class GPT2():
             self.close()
         
         if self.raw_text == "#change":
-            print("What variable would you like to modify?\n\nnsamples: {} \nbatch_size: {}\n".format(self.nsamples, self.batch_size))
+            print("What variable would you like to modify?\n\nnsamples: {} \nbatch_size: {} \nlength: {}".format(self.nsamples, self.batch_size, self.length))
             
             variable = input("Type the Variable: ")
             value = int(input("New Value: "))
@@ -231,7 +233,9 @@ class GPT2():
             self.raw_text = None
 
     def close(self):
-        print("Ending GPT-2")
+        self.logger._print("Ending GPT-2")
+        self.logger._print("\n"+"="*80, None)
+        
         self.logger.close()
         self.sess.close()
         exit()

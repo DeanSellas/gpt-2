@@ -17,10 +17,7 @@ def interact_model(
     debug = False,
 ):
     gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-    if debug:
-        gpt.run(True)
-    else:
-        gpt.run()
+    gpt.run(debug)
 
 if __name__ == '__main__':
     Fire(interact_model)
