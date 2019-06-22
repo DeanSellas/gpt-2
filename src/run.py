@@ -4,7 +4,7 @@ from fire import Fire
 def interact_model(
     model_name='117M',
     # made seed 20 to get same result every time. meant for testing
-    seed=20,
+    seed=None,
 
     # NSamples are how many outputs are generated
     nsamples=2,

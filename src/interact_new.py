@@ -15,14 +15,14 @@ class GPT2():
         ------------------------------------------------------------------------------------------------
         :model_name=117M : String, which model to use
 
-        :seed=None : Integer seed for random number generators, fix seed to reproduce
-        results
+        :seed= -1 : Integer seed for random number generators, fix seed to reproduce
+        results. If seed <= -1 (default) then generate a random seed between 0 and 2^32 - 1
 
         :nsamples=1 : Number of samples to return total
 
         :batch_size=1 : Number of batches (only affects speed/memory).  Must divide nsamples.
 
-        :length=None : Number of tokens in generated text, if None (default), is
+        :length=0 : Number of tokens in generated text, if 0 (default), is
         determined by model hyperparameters
 
         :temperature=1 : Float value controlling randomness in boltzmann
@@ -34,10 +34,14 @@ class GPT2():
         considered for each step (token), resulting in deterministic completions,
         while 40 means 40 words are considered at each step. 0 (default) is a
         special setting meaning no restrictions. 40 generally is a good value.
+
+        :log_path : Path to log file. If one is not provided the default path will be used (logs/log.txt)
+
+        :debug : Puts GPT-2 into a debugging mode. This allows for more logging and other useful features 
         ------------------------------------------------------------------------------------------------
     """
 
-    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40, log_path=None, debug=False):
+    def __init__(self, model_name='117M', seed=-1, nsamples=1, batch_size=1, length=0, temperature=1, top_k=0, log_path=None, debug=False):
         self.model_name = model_name
         self.seed = seed
         self.nsamples = nsamples
@@ -75,7 +79,6 @@ class GPT2():
         # checks properties before building application
         self._checks()
 
-
         # placeholder value, dtype, shape. Shape is batchzise and none
         self.context = tf.placeholder(tf.int32, [self.batch_size, None])
         self.logger._print("Context Pre-Output: {}".format(self.context))
@@ -84,15 +87,8 @@ class GPT2():
         np.random.seed(self.seed)
         tf.set_random_seed(self.seed)
 
-        # generates a sample set sequence of data based on parameters provided
-        self.sequence = sample.sample_sequence(
-            hparams = self.hparams, length = self.length,
-            context = self.context,
-            batch_size = self.batch_size,
-            temperature = self.temperature, top_k = self.top_k
-        )
-        # saves that data inside self.sequence
-        self.logger._print("Output: "+str(self.sequence))
+        # builds the sample for tensorflow
+        self.buildSeq()
 
         saver = tf.train.Saver()
         ckpt = tf.train.latest_checkpoint(os.path.join('models', self.model_name))
@@ -100,34 +96,57 @@ class GPT2():
 
         self.logger._print("Started GTP-2 With Params -- Seed: {}; Length: {}; nSamples: {}; Batch-Size: {};".format(self.seed, self.length, self.nsamples, self.batch_size))
 
+    def buildSeq(self):
+        # generates a sample set sequence of data based on parameters provided
+        self.sequence = sample.sample_sequence(
+            hparams = self.hparams, length = self.length,
+            context = self.context,
+            batch_size = self.batch_size,
+            temperature = self.temperature, top_k = self.top_k
+        )
+
+        # saves that data inside self.sequence
+        # self.logger._print("Output: "+str(self.sequence))
 
     def _checks(self):
         """
             Makes sure all values are appropriate values are inputted and corrects those values
         """
-        if self.seed == None:
-            # sets a random seed if seed is not defined
+
+        # checks the current seed and if it is not assigned random seed is generated
+        if self.seed < 1:
             self.seed = random.randint(0, 2**32-1)
-            self.logger._print("Seed was not defined. Your Seed is: " + str(self.seed), "W")
+            self.logger._print("Seed was not defined. Your Seed is: " + str(self.seed), 'W')
+
+        if self.nsamples < 1:
+            self.logger._print("nSamples must be an integer greater than 0. nSamples set to 1", 'W')
+            self.nsamples = 1
         
         # makes sure batch size is divisable by samples. prevents errors when building outputs
         if self.nsamples % self.batch_size == 0:
             # set batchsize to a default of 1
-            self.logger._print("Batch Size is too large for the amount of samples provided. Batch Size was set to 1.", "W")
+            self.logger._print("Batch Size is too large for the amount of samples provided. Batch Size was set to 1.", 'W')
             self.batch_size = 1
 
         # makes sure the output can calculate the desired length
-        if self.length == None or self.length > self.hparams.n_ctx:
+        if self.length < 1 or self.length > self.hparams.n_ctx:
             # default length = hparmas.n_ctx (max size) / 2
             self.length = self.hparams.n_ctx // 2
-            self.logger._print("Length was not defined or too long. Length was set to {}".format(self.length), "W")
+            self.logger._print("Length was not defined or too long. Length was set to {}".format(self.length), 'W')
 
+        if self.temperature < 1:
+            self.logger._print("Temperature must be 1 or higher. Temperature was set to 1", 'W')
+            self.temperature = 1
+
+        if self.top_k < 0:
+            self.logger._print("Top_k must be 0 or higher. Top_k was set to 0", 'W')
+            self.top_k = 0
+
+        # checks the log path assigned. If path does not exist, use default path
         if self.log_path != None and os.path.exists(self.log_path):
             self.log_path = None
             self.logger.path = self.log_path
-            self.logger._print("Path provided for the logs does not exist! Path has been set to log folder", "W")
-
-
+            self.logger._print("Path provided for the logs does not exist! Path has been set to log folder", 'W')
 
 
     def run(self):
@@ -232,29 +251,34 @@ class GPT2():
             print("Prompt should not be empty! Type ?help or ?h for available commands")
             self.raw_text = None
         
-        if self.raw_text == "?help" or self.raw_text == "?h":
+        elif self.raw_text == "?help" or self.raw_text == "?h":
             print("Available Commands:\n\n?help - Displays Commands. Alias: ?h\n#kill - Ends GPT-2 Process\n")
             self.raw_text = None
 
         # if user types #kill break the loop. Cleaner way to close application
-        if self.raw_text == "#kill":
+        elif self.raw_text == "#kill":
             check = input("Are you sure you want to end GPT-2? [Y/n] ").lower()
             if check == "n":
                 self.raw_text = None
             self.close()
         
-        if self.raw_text == "#change":
+        elif self.raw_text == "#change":
             print("What variable would you like to modify?\n\nnsamples: {} \nbatch_size: {} \nlength: {}".format(self.nsamples, self.batch_size, self.length))
             
-            variable = input("Type the Variable: ")
-            value = int(input("New Value: "))
+            variable = input("Type the Variable: ").lower()
+            try:
+                value = int(input("New Value: "))
 
+                if variable == "batch_size":
+                    self.batch_size = value
+                elif variable == "nsamples":
+                    self.nsamples = value
+                elif variable == "length":
+                    self.length = value
+                    self.buildSeq()
+            except:
+                self.logger._print("Please use an integer!", 'E')
             
-            if variable == "batch_size":
-                self.batch_size = value
-            if variable == "nsamples":
-                self.nsamples = value
-
             self.raw_text = None
 
     def close(self):

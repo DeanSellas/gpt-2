@@ -33,16 +33,16 @@ class pyLogger():
         """
         if t != None:
             t = t.upper()
-        if t == 'I':
-            t = "INFO"
-        elif t == 'W':
-            t = "WARNING"
-        elif t == 'E':
-            t = "ERROR"
-
-        if t != None:
+            if t == 'I':
+                t = "INFO"
+            elif t == 'W':
+                t = "WARNING"
+            elif t == 'E':
+                t = "ERROR"
+            
             print("{}: {}".format(t, m))
             self.outputArr.append("{}: {}\n".format(t, m))
+        
         else:
             print("{}".format(m))
             self.outputArr.append("{}\n".format(m))
