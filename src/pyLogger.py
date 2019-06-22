@@ -23,14 +23,23 @@ class pyLogger():
         self.outputArr = list()
 
 
-    def _print(self, m, t='INFO'):
+    def _print(self, m, t='I'):
         """
-        Alternative for printing to the console. Allows for the output to be displayed to the log.
+            Alternative for printing to the console. Allows for the output to be displayed to the log.
 
-        m variable is the message you want to display
+            m variable is the message you want to display
 
-        t is the prefix to the message. Can be used to organize the output into different types 
+            t is the prefix to the message. Can be used to organize the output into different types 
         """
+        if t != None:
+            t = t.upper()
+        if t == 'I':
+            t = "INFO"
+        elif t == 'W':
+            t = "WARNING"
+        elif t == 'E':
+            t = "ERROR"
+
         if t != None:
             print("{}: {}".format(t, m))
             self.outputArr.append("{}: {}\n".format(t, m))

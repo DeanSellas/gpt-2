@@ -15,9 +15,10 @@ def interact_model(
     temperature=0.5,
     top_k=40,
     debug = False,
+    log_path = None,
 ):
-    gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k)
-    gpt.run(debug)
+    gpt = GPT2(model_name, seed, nsamples, batch_size, length, temperature, top_k, log_path, debug)
+    gpt.run()
 
 if __name__ == '__main__':
     Fire(interact_model)

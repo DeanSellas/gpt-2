@@ -10,8 +10,7 @@ from pyLogger import pyLogger
 import model, sample, encoder
 
 class GPT2():
-    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40, log_path=None):
-        """
+    """
         GPT-2 class
         ------------------------------------------------------------------------------------------------
         :model_name=117M : String, which model to use
@@ -36,7 +35,9 @@ class GPT2():
         while 40 means 40 words are considered at each step. 0 (default) is a
         special setting meaning no restrictions. 40 generally is a good value.
         ------------------------------------------------------------------------------------------------
-        """
+    """
+
+    def __init__(self, model_name='117M', seed=None, nsamples=1, batch_size=1, length=None, temperature=0.5, top_k=40, log_path=None, debug=False):
         self.model_name = model_name
         self.seed = seed
         self.nsamples = nsamples
@@ -45,10 +46,10 @@ class GPT2():
         self.temperature = temperature
         self.top_k = top_k
         self.log_path = log_path
+        self.debug = debug
 
-        self._buildLogger()
         
-
+        
         # builds encoder for model.
         self.enc = encoder.get_encoder(self.model_name)
 
@@ -56,40 +57,24 @@ class GPT2():
         self.hparams = model.default_hparams()
         with open(os.path.join('models', self.model_name, 'hparams.json')) as f:
             self.hparams.override_from_dict(json.load(f))
-        
-        self._checks()
 
         # if checks pass, start tensorflow
         self.sess = tf.Session()
 
-        self._buildOutput()
+        self._getReady()
 
-    def _buildLogger(self):
+
+    def _getReady(self):
+        """
+            Builds the necessary objects for GPT-2 to run properly
+        """
+        # starts logger
         self.logger = pyLogger(self.log_path)
         self.logger._print("STARTING GPT-2 -- {}\n\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')), None)
         
+        # checks properties before building application
+        self._checks()
 
-
-    def _checks(self):
-        """ Makes sure all values are appropriate values are inputted and corrects those values """
-        if self.seed == None:
-            # sets a random seed if seed is not defined
-            self.seed = random.randint(0, 2**32-1)
-            self.logger._print("Your Seed is: " + str(self.seed))
-        
-        # makes sure batch size is divisable by samples. prevents errors when building outputs
-        if self.nsamples % self.batch_size == 0:
-            # set batchsize to a default of 1
-            self.batch_size = 1
-
-        # makes sure the output can calculate the desired length
-        if self.length == None or self.length > self.hparams.n_ctx:
-            # default length = hparmas.n_ctx (max size) / 2
-            self.length = self.hparams.n_ctx // 2
-
-
-    def _buildOutput(self):
-        """ Builds the necessary objects for GPT-2 to run properly """
 
         # placeholder value, dtype, shape. Shape is batchzise and none
         self.context = tf.placeholder(tf.int32, [self.batch_size, None])
@@ -113,12 +98,43 @@ class GPT2():
         ckpt = tf.train.latest_checkpoint(os.path.join('models', self.model_name))
         saver.restore(self.sess, ckpt)
 
+        self.logger._print("Started GTP-2 With Params -- Seed: {}; Length: {}; nSamples: {}; Batch-Size: {};".format(self.seed, self.length, self.nsamples, self.batch_size))
 
-    def run(self, debug = False):
+
+    def _checks(self):
         """
-        Runs GPT-2
+            Makes sure all values are appropriate values are inputted and corrects those values
+        """
+        if self.seed == None:
+            # sets a random seed if seed is not defined
+            self.seed = random.randint(0, 2**32-1)
+            self.logger._print("Seed was not defined. Your Seed is: " + str(self.seed), "W")
+        
+        # makes sure batch size is divisable by samples. prevents errors when building outputs
+        if self.nsamples % self.batch_size == 0:
+            # set batchsize to a default of 1
+            self.logger._print("Batch Size is too large for the amount of samples provided. Batch Size was set to 1.", "W")
+            self.batch_size = 1
 
-        Debug allows the user to see more output. Also displays time it took for the program to create and display the output
+        # makes sure the output can calculate the desired length
+        if self.length == None or self.length > self.hparams.n_ctx:
+            # default length = hparmas.n_ctx (max size) / 2
+            self.length = self.hparams.n_ctx // 2
+            self.logger._print("Length was not defined or too long. Length was set to {}".format(self.length), "W")
+
+        if self.log_path != None and os.path.exists(self.log_path):
+            self.log_path = None
+            self.logger.path = self.log_path
+            self.logger._print("Path provided for the logs does not exist! Path has been set to log folder", "W")
+
+
+
+
+    def run(self):
+        """
+            Runs GPT-2
+
+            Debug allows the user to see more output. Also displays time it took for the program to create and display the output
         """
 
         self.logger._print("Type ?help for available commands")
@@ -131,7 +147,7 @@ class GPT2():
             # encodes the inputted string into a format that can be inputted into Tensor Flow
             context_tokens = self.enc.encode(self.raw_text)
 
-            if debug:
+            if self.debug:
                 self.logger._print("Seed: {}; Length: {}; nSamples: {}; Batch-Size: {};".format(self.seed, self.length, self.nsamples, self.batch_size))
                 start = time.time()
             
@@ -141,16 +157,23 @@ class GPT2():
                 # print("Output Tensor: "+str(output))
 
                 # feed dictionary, consiting of the context tokens
+                # context tolkens are created by encoding the values provided by the user
                 contextDic = {self.context: [context_tokens for placeholder in range(self.batch_size)]}
 
                 # print("Context Dictionary: "+ str(contextDic))
 
-                # TODO figure out how this function works
-                #  OUT CREATES ALL THE OUTPUTS FOR THE GIVEN PROMPT
-                # https://www.tensorflow.org/api_docs/python/tf/Session#run
-                out = self.sess.run(self.sequence, feed_dict=contextDic)
 
-                # print(out)
+                """
+                    TODO figure out how this function works
+
+                    OUT CREATES ALL THE OUTPUTS FOR THE GIVEN PROMPT
+                    https://www.tensorflow.org/api_docs/python/tf/Session#run
+
+                    Encoded text and model data is sent into Tensorflow.
+
+                    Tensorflow is then able to create a output based on sample sequence and raw input.
+                """
+                out = self.sess.run(self.sequence, feed_dict=contextDic)
 
                 # Removes the context tokens (inputted string) from the output.
 
@@ -160,22 +183,24 @@ class GPT2():
                 # print(out)
 
                 """
-                ------------------------------------------------------------------------------------------------
+                    ------------------------------------------------------------------------------------------------
 
-                There seems to be a graph comparison going on here and returns a list with the indexes to the text.
-                Out is a list of lists. Top list contains the sublists that hold the indices to the dictionary
+                    There seems to be a graph comparison going on here and returns a list with the indexes to the text.
+                    Out is a list of lists. Top list contains the sublists that hold the indices to the dictionary
 
-                ------------------------------------------------------------------------------------------------
+                    ------------------------------------------------------------------------------------------------
 
-                What I believe is going on is, samples.py creates a graph that seems to be likely next words. This then gets thrown into the TensorFlow.run() function and is compaired to a dictionary. This then somehow comes up with an appropriate output to generate.
+                    What I believe is going on is, samples.py creates a graph that seems to be likely next words. This then gets thrown into the TensorFlow.run() function and is compaired to a dictionary. This then somehow comes up with an appropriate output to generate.
 
-                ------------------------------------------------------------------------------------------------
+                    ------------------------------------------------------------------------------------------------
 
-                Because most of this seems to be handled inside of Tensorflow it may be difficult to gain access to the inner workings
+                    Because most of this seems to be handled inside of Tensorflow it may be difficult to gain access to the inner workings
 
-                ------------------------------------------------------------------------------------------------
+                    ------------------------------------------------------------------------------------------------
 
-                TODO: see if there are other ways to generate Top-K.
+                    TODO: see if there are other ways to generate Top-K.
+
+                    -- i am unsure if i can get the Top-K. This is because it seems to be stored inside tensorflow and I have not found a way to output it -- 
                 """
 
                 for i in range(self.batch_size):
@@ -187,7 +212,7 @@ class GPT2():
                     self.logger._print(text, "OUTPUT")
 
             print("=" * 80)
-            if debug:
+            if self.debug:
                 end = time.time()
                 self.logger._print("It took "+str(round(end - start)) + " seconds to generate this output")
             self.logger._save()
