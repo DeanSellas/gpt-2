@@ -2,8 +2,8 @@ import json, os, time, random
 import numpy as np
 import tensorflow as tf
 
+import sys
 from datetime import datetime
-
 
 from pyLogger import pyLogger
 
@@ -287,4 +287,4 @@ class GPT2():
         
         self.logger.close()
         self.sess.close()
-        exit()
+        sys.exit()
