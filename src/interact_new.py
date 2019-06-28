@@ -94,7 +94,7 @@ class GPT2():
         ckpt = tf.train.latest_checkpoint(os.path.join('models', self.model_name))
         saver.restore(self.sess, ckpt)
 
-        self.logger._print("Started GTP-2 With Params -- Seed: {}; Length: {}; nSamples: {}; Batch-Size: {};".format(self.seed, self.length, self.nsamples, self.batch_size))
+        self.logger._print("Started GTP-2 With Params -- Seed: {}; Length: {}; nSamples: {}; Batch-Size: {}; Top-K: {}; Tempurature: {}".format(self.seed, self.length, self.nsamples, self.batch_size, self.top_k, self.temperature))
 
     def buildSeq(self):
         # generates a sample set sequence of data based on parameters provided
@@ -114,7 +114,7 @@ class GPT2():
         """
 
         # checks the current seed and if it is not assigned random seed is generated
-        if self.seed < 1:
+        if self.seed < 1 or type(self.seed) is not int:
             self.seed = random.randint(0, 2**32-1)
             self.logger._print("Seed was not defined. Your Seed is: " + str(self.seed), 'W')
 

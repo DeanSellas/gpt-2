@@ -15,10 +15,12 @@ class pyLogger():
         self.fileName = fileName
         filePath = os.path.join(self.path, self.fileName)
 
-        # if file size is larger than 20mb rename it and start new log file
-        if os.path.getsize(filePath) > 20000000:
-            os.rename(filePath, os.path.join(self.path, "Old_Log.txt"))
-
+        try:
+            # if file size is larger than 20mb rename it and start new log file
+            if os.path.getsize(filePath) > 20000000:
+                os.rename(filePath, os.path.join(self.path, "Old_Log.txt"))
+        except:
+            pass
         
         self.outputArr = list()
 
@@ -54,9 +56,11 @@ class pyLogger():
         if fileName == None:
             fileName = self.fileName
 
-        self.logFile = open("{}\\{}".format(self.path, fileName), 'a')
-        self.logFile.writelines(self.outputArr)
-        
+        try:
+            self.logFile = open("{}\\{}".format(self.path, fileName), 'a')
+            self.logFile.writelines(self.outputArr)
+        except:
+            pass
         self.outputArr.clear()
 
 
